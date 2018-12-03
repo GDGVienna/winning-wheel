@@ -1,0 +1,197 @@
+<!--
+    Winhweel.js basic code wheel example by Douglas McKechie @ www.dougtesting.net
+    See website for tutorials and other documentation.
+
+    The MIT License (MIT)
+
+    Copyright (c) 2016 Douglas McKechie
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+-->
+<html>
+    <head>
+        <title>Winning Wheel</title>
+        <link rel="stylesheet" href="main.css" type="text/css" />
+        <script type="text/javascript" src="Winwheel.js"></script>
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/gsap/latest/TweenMax.min.js"></script>
+    </head>
+    <body>
+        <div align="left">
+            <h1 contenteditable="true">GDG Vienna Raffle</h1>
+            <div id="enter-names">
+                <textarea id="names"></textarea>
+                <br>
+                <button onclick="startRaffle()">Start Raffle</button>
+            </div>
+            <table cellpadding="0" cellspacing="10" border="0">
+                <tr>
+                    <td width="600" height="700" class="the_wheel" align="center" valign="center">
+                        <canvas id="canvas" width="600" height="600" onclick="nextRound()">
+                            <p style="{color: white}" align="center">Sorry, your browser doesn't support canvas. Please try another.</p>
+                        </canvas>
+                    </td>
+                    <td>
+                        <div id="winners" style="display:none;">
+                            <h3>Winners</h3>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <script>
+            var names = [];
+            var theWheel;
+
+            function startRaffle() {
+                var namesText = document.getElementById("names").value;
+                var namesRaw = namesText.split("\n");
+                names = [];
+                var i;
+                for (i=0; i<namesRaw.length; i++) {
+                    var parts = namesRaw[i].split("\t");
+                    var name = parts[0];
+                    var first_name = name.split(" ")[0];
+                    var shortname = first_name.substring(0, 15);
+                    var url = parts[8];
+                    if (!url) {
+                        url = "index" + i;
+                    }
+                    if (first_name !== shortname) {
+                        shortname = shortname + "...";
+                    }
+                    if (name != "Name" && name != "") {
+                        names.push({'text': shortname, 'name': name, 'url': url});
+                    }
+                }
+                // hide area to enter names
+                document.getElementById("enter-names").style.display = "none";
+                // start first round
+                drawWheel();
+            }
+            // remove a name by URL
+            function removeName(url) {
+                var i;
+                for (i=0; i<names.length; i++) {
+                    if (names[i].url === url) {
+                        names.splice(i, 1);
+                        return;
+                    }
+                }
+            }
+            // Shuffle function from http://stackoverflow.com/a/2450976
+            function shuffle(array) {
+                var currentIndex = array.length, temporaryValue, randomIndex;
+
+                while (currentIndex !== 0) {
+                    randomIndex = Math.floor(Math.random() * currentIndex);
+                    currentIndex -= 1;
+                    temporaryValue = array[currentIndex];
+                    array[currentIndex] = array[randomIndex];
+                    array[randomIndex] = temporaryValue;
+                }
+
+                return array;
+            };
+            // draw the wheel with pre-selected names
+            function drawWheel() {
+                var shuffled = shuffle(names);
+                var part = shuffled.slice(0,20);
+                var segments = [];
+                var colors = ['#4285f4', '#34a853', '#fbbc05', '#ea4335'];
+                if (part.length > colors.length && part.length < 20) {
+                    var len = part.length - (part.length % colors.length);
+                    part = part.slice(0, len);
+                }
+                var i;
+                for (i=0; i<part.length; i++) {
+                    var color = colors[i % colors.length];
+                    segments.push({
+                        'fillStyle': colors[i % colors.length],
+                        'text': part[i].text,
+                        'name': part[i].name,
+                        'url': part[i].url
+                    });
+                }
+                theWheel = new Winwheel({
+                    'numSegments': part.length,
+                    'outerRadius': 300,
+                    'textFontSize': 14,
+                    'strokeStyle': "",
+                    'segments': segments,
+                    'animation': {
+                        'type'     : 'spinToStop',
+                        'duration' : 3,     // Duration in seconds.
+                        'spins'    : 4,     // Number of complete spins.
+                        'callbackFinished' : alertPrize
+                    }
+                });
+            }
+
+
+            // Vars used by the code in this page to do power controls.
+            var wheelPower    = 0;
+            var wheelSpinning = false;
+
+            // -------------------------------------------------------
+            // Click handler for spin button.
+            // -------------------------------------------------------
+            function startSpin()
+            {
+                // Begin the spin animation by calling startAnimation on the wheel object.
+                theWheel.startAnimation();
+            }
+
+            // -------------------------------------------------------
+            // Function for reset button.
+            // -------------------------------------------------------
+            function resetWheel()
+            {
+                theWheel.stopAnimation(false);  // Stop the animation, false as param so does not call callback function.
+                theWheel.rotationAngle = 0;     // Re-set the wheel angle to 0 degrees.
+            }
+
+            function nextRound()
+            {
+                if (winners.length != 0) {
+                    resetWheel();
+                    drawWheel();
+                }
+                startSpin();
+            }
+            // -------------------------------------------------------
+            // Called when the spin animation has finished by the callback feature of the wheel because I specified callback in the parameters
+            // note the indicated segment is passed in as a parmeter as 99% of the time you will want to know this to inform the user of their prize.
+            // -------------------------------------------------------
+            function alertPrize(segment)
+            {
+                // Do basic alert of the segment text. You would probably want to do something more interesting with this information.
+                removeName(segment.url);
+                var winnersDiv = document.getElementById("winners");
+                winnersDiv.style.display = "block";
+                if (segment.url.startsWith("http")) {
+                    winnersDiv.innerHTML = winnersDiv.innerHTML + "<a href='"
+                        + segment.url + "' target='_blank'>" + segment.name + "</a><br>";
+                }
+                else {
+                    winnersDiv.innerHTML = winnersDiv.innerHTML + segment.name + "<br>";
+                }
+            }
+        </script>
+    </body>
+</html>
